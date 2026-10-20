@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "lint": "tsc --noEmit",
     "git:sync": "git add . && git commit -m 'feat: update PWA and validation features' && git push -u origin main"
   },
   "dependencies": {

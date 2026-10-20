@@ -54,7 +54,7 @@ ${report.weaknesses.map(w => `- ⚠️ ${w}`).join('\n')}
 ---
 
 ## 🛠️ Action Priorities (Impact Refinements)
-${report.offerRefinement.map(r => `### Priority ${r.priority}: ${r.title}\n${r.actionPlan}`).join('\n\n')}
+${report.offerRefinement.map(r => `### Priority ${r.priority}: ${r.issue}\n- **Current State:** ${r.currentState}\n- **Target State:** ${r.targetState}\n- **Action:** ${r.action}`).join('\n\n')}
 
 ---
 
