@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AppState, ValidationReport } from './types';
+import { AppState, ValidationReport, MarketPulseData } from './types';
 import { generateBridgeReport } from './services/gemini';
 import { QuestionFlow } from './components/QuestionFlow';
 import { ReportView } from './components/ReportView';
 import { Button } from './components/Button';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { MarketPulse } from './components/MarketPulse';
 import { GITHUB_REPO_URL, GITHUB_WEB_URL } from './components/GitHubSyncModal';
-import { GitBranch, ExternalLink, RefreshCw } from 'lucide-react';
+import { GitBranch, ExternalLink, RefreshCw, TrendingUp } from 'lucide-react';
 
 // Utility to generate the raw text format for "NotNotes"
 const generateArtifactText = (report: ValidationReport) => {
@@ -56,6 +57,7 @@ END OF REPORT
 export default function App() {
   const [state, setState] = useState<AppState>(AppState.WELCOME);
   const [report, setReport] = useState<ValidationReport | null>(null);
+  const [marketPulse, setMarketPulse] = useState<MarketPulseData | null>(null);
 
   const handleStart = () => {
     setState(AppState.QUESTIONS);
@@ -64,7 +66,7 @@ export default function App() {
   const handleQuestionsComplete = async (answers: string[]) => {
     setState(AppState.ANALYZING);
     try {
-      const generatedReport = await generateBridgeReport(answers);
+      const generatedReport = await generateBridgeReport(answers, marketPulse);
       setReport(generatedReport);
       setState(AppState.REPORT);
     } catch (error) {
@@ -143,24 +145,45 @@ export default function App() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, filter: "blur(10px)" }}
               transition={{ duration: 0.6 }}
-              className="text-center max-w-2xl mx-auto space-y-8"
+              className="text-center max-w-4xl mx-auto space-y-8"
             >
-              <div className="inline-block mb-4">
-                 <div className="h-[1px] w-20 bg-bridge-gold/50 mx-auto mb-4"></div>
-                 <span className="text-bridge-gold text-xs uppercase tracking-[0.3em]">Offer Validation Protocol</span>
+              <div className="max-w-2xl mx-auto space-y-6">
+                <div className="inline-block mb-2">
+                   <div className="h-[1px] w-20 bg-bridge-gold/50 mx-auto mb-4"></div>
+                   <span className="text-bridge-gold text-xs uppercase tracking-[0.3em]">Offer Validation Protocol</span>
+                </div>
+                <h1 className="text-5xl md:text-7xl font-serif font-bold text-white leading-tight">
+                  Validate Your <br />
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-500">Offer-Market Fit</span>
+                </h1>
+                <p className="text-lg text-bridge-subtext max-w-md mx-auto leading-relaxed">
+                  A diagnostic tool to assess whether your offer hits a bleeding neck problem with enough clarity to convert.
+                </p>
+
+                {/* If Market Pulse is active, display status pill */}
+                {marketPulse && (
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-bridge-gold/15 border border-bridge-gold/30 text-xs text-bridge-gold animate-fade-in">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>Market Pulse Active: <strong>{marketPulse.industry}</strong> ({marketPulse.keywords.length} trending keywords loaded)</span>
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <Button onClick={handleStart} className="text-lg px-10 py-4 shadow-xl shadow-bridge-gold/15">
+                    {marketPulse ? `Initiate Validation (${marketPulse.industry})` : "Initiate Validation Directly"}
+                  </Button>
+                </div>
               </div>
-              <h1 className="text-5xl md:text-7xl font-serif font-bold text-white leading-tight">
-                Validate Your <br />
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-500">Offer-Market Fit</span>
-              </h1>
-              <p className="text-lg text-bridge-subtext max-w-md mx-auto leading-relaxed">
-                A diagnostic tool to assess whether your offer hits a bleeding neck problem with enough clarity to convert.
-              </p>
-              <div className="pt-8">
-                <Button onClick={handleStart} className="text-lg px-10 py-4">
-                  Initiate Validation
-                </Button>
-              </div>
+
+              {/* Market Pulse Feature Section */}
+              <MarketPulse
+                activePulse={marketPulse}
+                setActivePulse={setMarketPulse}
+                onStartValidationWithContext={(pulse) => {
+                  setMarketPulse(pulse);
+                  setState(AppState.QUESTIONS);
+                }}
+              />
             </motion.div>
           )}
 
@@ -172,7 +195,7 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="w-full"
             >
-              <QuestionFlow onComplete={handleQuestionsComplete} />
+              <QuestionFlow onComplete={handleQuestionsComplete} marketPulse={marketPulse} />
             </motion.div>
           )}
 

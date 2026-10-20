@@ -24,6 +24,30 @@ export interface ValidationReport {
   marketMessageMatch: string;
 }
 
+export interface GroundingSource {
+  title: string;
+  url: string;
+}
+
+export interface TrendingKeyword {
+  keyword: string;
+  intent: 'Problem / Pain' | 'Solution / Buy' | 'Breakout Trend' | 'Competitor Comparison';
+  momentum: string;
+  context: string;
+}
+
+export interface MarketPulseData {
+  industry: string;
+  timestamp: string;
+  summary: string;
+  keywords: TrendingKeyword[];
+  emergingDemands: string[];
+  saturatedAngles: string[];
+  opportunityGap: string;
+  sources: GroundingSource[];
+  searchQueries?: string[];
+}
+
 export enum AppState {
   WELCOME,
   QUESTIONS,
@@ -32,3 +56,4 @@ export enum AppState {
   COMMITTING,
   FINISHED
 }
+
