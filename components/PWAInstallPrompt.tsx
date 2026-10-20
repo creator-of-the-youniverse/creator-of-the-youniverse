@@ -139,35 +139,46 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) =
             aria-label="Install BRIDGE App prompt"
             initial={{
               opacity: 0,
-              scale: 0.15,
-              y: 120,
-              rotate: -20,
-              rotateZ: -16,
-              skewX: -8,
-              filter: 'blur(6px)',
+              y: 75,
+              scale: 0.72,
+              rotate: -12,
             }}
             animate={{
               opacity: 1,
-              scale: [0.15, 1.16, 0.93, 1.04, 1],
-              y: [120, -22, 8, -3, 0],
-              rotate: [-20, 12, -5, 2, 0],
-              rotateZ: [-16, 10, -4, 1.5, 0],
-              skewX: [-8, 5, -2, 0],
-              filter: ['blur(6px)', 'blur(0px)', 'blur(0px)', 'blur(0px)', 'blur(0px)'],
+              y: 0,
+              scale: 1,
+              rotate: 0,
             }}
             exit={{
               opacity: 0,
-              scale: 0.7,
-              y: 60,
-              rotate: 10,
-              filter: 'blur(4px)',
-              transition: { duration: 0.3, ease: 'easeIn' },
+              scale: 0.85,
+              y: 40,
+              rotate: 6,
+              transition: { duration: 0.22, ease: 'easeIn' },
             }}
             transition={{
-              duration: 0.88,
-              times: [0, 0.44, 0.7, 0.88, 1],
-              ease: [0.34, 1.56, 0.64, 1],
+              opacity: { duration: 0.25, ease: 'easeOut' },
+              y: {
+                type: 'spring',
+                stiffness: 240,
+                damping: 17,
+                mass: 0.85,
+              },
+              scale: {
+                type: 'spring',
+                stiffness: 260,
+                damping: 18,
+                mass: 0.85,
+              },
+              rotate: {
+                type: 'spring',
+                stiffness: 210,
+                damping: 15, // Creates a lively, fluid twist with smooth natural deceleration
+                mass: 0.85,
+              },
             }}
+            whileHover={{ scale: 1.015 }}
+            style={{ transformOrigin: 'bottom right' }}
             className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 max-w-sm w-[calc(100vw-2rem)] rounded-2xl bg-gradient-to-br from-[#0e1320]/95 via-[#0c101a]/95 to-[#131929]/95 backdrop-blur-2xl border border-bridge-gold/50 p-4 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_30px_rgba(255,215,0,0.22)] text-white select-none overflow-hidden"
           >
             {/* Ambient gold glow highlight line across the top */}
@@ -178,9 +189,14 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) =
               <div className="flex items-center gap-3">
                 {/* Playful bouncing icon with animated live beacon */}
                 <motion.div
-                  initial={{ rotate: -35, scale: 0 }}
-                  animate={{ rotate: [-35, 18, -8, 0], scale: [0, 1.25, 0.95, 1] }}
-                  transition={{ delay: 0.2, duration: 0.7, ease: 'easeOut' }}
+                  initial={{ rotate: -25, scale: 0.4, opacity: 0 }}
+                  animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 280,
+                    damping: 17,
+                    delay: 0.08,
+                  }}
                   className="w-11 h-11 rounded-xl bg-gradient-to-br from-bridge-card to-bridge-gold/25 border border-bridge-gold/50 flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(255,215,0,0.25)] relative"
                 >
                   <Smartphone className="w-5 h-5 text-bridge-gold" />
