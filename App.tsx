@@ -113,6 +113,7 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
+          <PWAInstallPrompt variant="header-button" />
           <div className="text-[11px] font-mono text-bridge-subtext/70 hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.03] border border-white/5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             <span>SYSTEM ONLINE</span>

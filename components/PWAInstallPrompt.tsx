@@ -20,55 +20,43 @@ import {
 import { usePWAInstall } from './usePWAInstall';
 
 interface PWAInstallPromptProps {
-  /** Optional variant for backwards compatibility. Defaults to the scroll-delayed animated pop-up. */
+  /** 'popup' (animated delayed toast, default), 'header-button' (top navbar action), or 'banner' (disabled) */
   variant?: 'popup' | 'floating-toast' | 'banner' | 'header-button';
   onClose?: () => void;
 }
 
-export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
+export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ variant = 'popup', onClose }) => {
   const { isInstallable, isInstalled, isStandalone, isInIframe, install } = usePWAInstall();
-  const [hasScrolledDown, setHasScrolledDown] = useState(false);
+  const [hasTriggered, setHasTriggered] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  // Initialize dismissed state from sessionStorage
+  // Trigger prompt on scroll down OR after brief delay fallback so it never gets lost
   useEffect(() => {
-    try {
-      if (sessionStorage.getItem('bridge_pwa_prompt_dismissed') === 'true') {
-        setIsDismissed(true);
-      }
-    } catch {
-      // Ignore sessionStorage errors
-    }
-  }, []);
-
-  // Delay prompt until the user scrolls down
-  useEffect(() => {
-    let triggered = false;
-
-    const triggerPrompt = () => {
-      if (!triggered) {
-        triggered = true;
-        setHasScrolledDown(true);
+    let fired = false;
+    const trigger = () => {
+      if (!fired) {
+        fired = true;
+        setHasTriggered(true);
       }
     };
 
-    // 1. Check window/document scroll offset
+    // 1. Detect scroll down (even slight scroll down of 15px)
     const handleScroll = () => {
       const scrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-      if (scrollY > 50) {
-        triggerPrompt();
+      if (scrollY > 15) {
+        trigger();
       }
     };
 
-    // 2. Detect downward wheel movement
+    // 2. Detect downward mouse wheel
     const handleWheel = (e: WheelEvent) => {
-      if (e.deltaY > 15) {
-        triggerPrompt();
+      if (e.deltaY > 10) {
+        trigger();
       }
     };
 
-    // 3. Detect touch swipe up (which scrolls page down)
+    // 3. Detect touch swipe up (user scrolling down)
     let touchStartY = 0;
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches && e.touches[0]) {
@@ -79,8 +67,8 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) =
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches && e.touches[0]) {
         const currentY = e.touches[0].clientY;
-        if (touchStartY - currentY > 35) {
-          triggerPrompt();
+        if (touchStartY - currentY > 20) {
+          trigger();
         }
       }
     };
@@ -90,13 +78,14 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) =
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('touchmove', handleTouchMove, { passive: true });
 
-    // Check if page is already scrolled on mount
-    const initialScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-    if (initialScrollY > 50) {
-      triggerPrompt();
-    }
+    // 4. Timer fallback: if user stays on the page for 1.8 seconds without scrolling,
+    // automatically trigger the bounce & twist animation so the prompt is never missing
+    const timer = setTimeout(() => {
+      trigger();
+    }, 1800);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('touchstart', handleTouchStart);
@@ -107,11 +96,6 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) =
   const handleDismiss = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setIsDismissed(true);
-    try {
-      sessionStorage.setItem('bridge_pwa_prompt_dismissed', 'true');
-    } catch {
-      // Ignore
-    }
     if (onClose) onClose();
   }, [onClose]);
 
@@ -126,9 +110,52 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) =
     }
   };
 
-  // Only hide if verified standalone app outside iframe
+  // Static banner is disabled per user request ("remove the static prompt to install")
+  if (variant === 'banner') {
+    return null;
+  }
+
+  // Header quick-action button
+  if (variant === 'header-button') {
+    if (isStandalone && !isInIframe && isInstalled) {
+      return (
+        <>
+          <button
+            onClick={() => setShowModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold text-emerald-400 transition cursor-pointer"
+            title="BRIDGE PWA Installed - Click for App Info"
+          >
+            <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+            <span>App Active</span>
+          </button>
+          {showModal && <PWAInstallModal onClose={() => setShowModal(false)} />}
+        </>
+      );
+    }
+
+    return (
+      <>
+        <button
+          onClick={handleTriggerInstall}
+          className="group relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-bridge-gold/20 via-amber-400/25 to-bridge-gold/20 hover:from-bridge-gold/30 hover:to-amber-400/35 border border-bridge-gold/50 hover:border-bridge-gold text-bridge-gold text-xs font-bold tracking-wide transition-all duration-200 cursor-pointer shadow-[0_0_12px_rgba(255,215,0,0.15)] hover:shadow-[0_0_20px_rgba(255,215,0,0.3)] active:scale-95"
+          title="Install BRIDGE App to your device"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-bridge-gold opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-bridge-gold"></span>
+          </span>
+          <Download className="w-3.5 h-3.5 group-hover:scale-110 transition-transform text-bridge-gold" />
+          <span>Install App</span>
+        </button>
+
+        {showModal && <PWAInstallModal onClose={() => setShowModal(false)} />}
+      </>
+    );
+  }
+
+  // Pop-up prompt (variant="popup" or "floating-toast")
   const isAlreadyActiveInStandalone = isStandalone && !isInIframe && isInstalled;
-  const isVisible = hasScrolledDown && !isDismissed && !isAlreadyActiveInStandalone;
+  const isVisible = hasTriggered && !isDismissed && !isAlreadyActiveInStandalone;
 
   return (
     <>
@@ -139,46 +166,35 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) =
             aria-label="Install BRIDGE App prompt"
             initial={{
               opacity: 0,
-              y: 75,
-              scale: 0.72,
-              rotate: -12,
+              scale: 0.15,
+              y: 120,
+              rotate: -20,
+              rotateZ: -16,
+              skewX: -8,
+              filter: 'blur(6px)',
             }}
             animate={{
               opacity: 1,
-              y: 0,
-              scale: 1,
-              rotate: 0,
+              scale: [0.15, 1.16, 0.93, 1.04, 1],
+              y: [120, -22, 8, -3, 0],
+              rotate: [-20, 12, -5, 2, 0],
+              rotateZ: [-16, 10, -4, 1.5, 0],
+              skewX: [-8, 5, -2, 0],
+              filter: ['blur(6px)', 'blur(0px)', 'blur(0px)', 'blur(0px)', 'blur(0px)'],
             }}
             exit={{
               opacity: 0,
-              scale: 0.85,
-              y: 40,
-              rotate: 6,
-              transition: { duration: 0.22, ease: 'easeIn' },
+              scale: 0.7,
+              y: 60,
+              rotate: 10,
+              filter: 'blur(4px)',
+              transition: { duration: 0.3, ease: 'easeIn' },
             }}
             transition={{
-              opacity: { duration: 0.25, ease: 'easeOut' },
-              y: {
-                type: 'spring',
-                stiffness: 240,
-                damping: 17,
-                mass: 0.85,
-              },
-              scale: {
-                type: 'spring',
-                stiffness: 260,
-                damping: 18,
-                mass: 0.85,
-              },
-              rotate: {
-                type: 'spring',
-                stiffness: 210,
-                damping: 15, // Creates a lively, fluid twist with smooth natural deceleration
-                mass: 0.85,
-              },
+              duration: 0.88,
+              times: [0, 0.44, 0.7, 0.88, 1],
+              ease: [0.34, 1.56, 0.64, 1],
             }}
-            whileHover={{ scale: 1.015 }}
-            style={{ transformOrigin: 'bottom right' }}
             className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 max-w-sm w-[calc(100vw-2rem)] rounded-2xl bg-gradient-to-br from-[#0e1320]/95 via-[#0c101a]/95 to-[#131929]/95 backdrop-blur-2xl border border-bridge-gold/50 p-4 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_30px_rgba(255,215,0,0.22)] text-white select-none overflow-hidden"
           >
             {/* Ambient gold glow highlight line across the top */}
@@ -189,14 +205,9 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) =
               <div className="flex items-center gap-3">
                 {/* Playful bouncing icon with animated live beacon */}
                 <motion.div
-                  initial={{ rotate: -25, scale: 0.4, opacity: 0 }}
-                  animate={{ rotate: 0, scale: 1, opacity: 1 }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 280,
-                    damping: 17,
-                    delay: 0.08,
-                  }}
+                  initial={{ rotate: -35, scale: 0 }}
+                  animate={{ rotate: [-35, 18, -8, 0], scale: [0, 1.25, 0.95, 1] }}
+                  transition={{ delay: 0.2, duration: 0.7, ease: 'easeOut' }}
                   className="w-11 h-11 rounded-xl bg-gradient-to-br from-bridge-card to-bridge-gold/25 border border-bridge-gold/50 flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(255,215,0,0.25)] relative"
                 >
                   <Smartphone className="w-5 h-5 text-bridge-gold" />
