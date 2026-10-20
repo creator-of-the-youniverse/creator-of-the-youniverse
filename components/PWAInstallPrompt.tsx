@@ -1,51 +1,119 @@
-import React, { useState, useEffect } from 'react';
-import { Smartphone, Download, CheckCircle, Share, PlusSquare, X, Sparkles, ShieldCheck, Laptop, ExternalLink, ArrowRight, Info, Copy, Check } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Smartphone, 
+  Download, 
+  CheckCircle, 
+  Share, 
+  PlusSquare, 
+  X, 
+  Sparkles, 
+  ShieldCheck, 
+  Laptop, 
+  ExternalLink, 
+  ArrowRight, 
+  Info, 
+  Copy, 
+  Check,
+  ChevronRight
+} from 'lucide-react';
 import { usePWAInstall } from './usePWAInstall';
 
 interface PWAInstallPromptProps {
-  variant?: 'banner' | 'header-button' | 'floating-toast';
+  /** Optional variant for backwards compatibility. Defaults to the scroll-delayed animated pop-up. */
+  variant?: 'popup' | 'floating-toast' | 'banner' | 'header-button';
   onClose?: () => void;
 }
 
-export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ variant = 'banner', onClose }) => {
-  const { isInstallable, isInstalled, isStandalone, isIOS, isInIframe, install } = usePWAInstall();
+export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
+  const { isInstallable, isInstalled, isStandalone, isInIframe, install } = usePWAInstall();
+  const [hasScrolledDown, setHasScrolledDown] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [toastDismissed, setToastDismissed] = useState(false);
 
+  // Initialize dismissed state from sessionStorage
   useEffect(() => {
-    // Only check session dismissal if set in this exact session tab
     try {
-      const wasBannerDismissed = sessionStorage.getItem('bridge_pwa_banner_dismissed') === 'true';
-      const wasToastDismissed = sessionStorage.getItem('bridge_pwa_toast_dismissed') === 'true';
-      if (wasBannerDismissed) setBannerDismissed(true);
-      if (wasToastDismissed) setToastDismissed(true);
+      if (sessionStorage.getItem('bridge_pwa_prompt_dismissed') === 'true') {
+        setIsDismissed(true);
+      }
     } catch {
-      // Ignore sessionStorage errors in restricted environments
+      // Ignore sessionStorage errors
     }
   }, []);
 
-  const handleDismissBanner = (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setBannerDismissed(true);
-    try {
-      sessionStorage.setItem('bridge_pwa_banner_dismissed', 'true');
-    } catch {
-      // Ignore
-    }
-    if (onClose) onClose();
-  };
+  // Delay prompt until the user scrolls down
+  useEffect(() => {
+    let triggered = false;
 
-  const handleDismissToast = (e?: React.MouseEvent) => {
+    const triggerPrompt = () => {
+      if (!triggered) {
+        triggered = true;
+        setHasScrolledDown(true);
+      }
+    };
+
+    // 1. Check window/document scroll offset
+    const handleScroll = () => {
+      const scrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      if (scrollY > 50) {
+        triggerPrompt();
+      }
+    };
+
+    // 2. Detect downward wheel movement
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY > 15) {
+        triggerPrompt();
+      }
+    };
+
+    // 3. Detect touch swipe up (which scrolls page down)
+    let touchStartY = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches && e.touches[0]) {
+        touchStartY = e.touches[0].clientY;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches && e.touches[0]) {
+        const currentY = e.touches[0].clientY;
+        if (touchStartY - currentY > 35) {
+          triggerPrompt();
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+
+    // Check if page is already scrolled on mount
+    const initialScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    if (initialScrollY > 50) {
+      triggerPrompt();
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
+
+  const handleDismiss = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setToastDismissed(true);
+    setIsDismissed(true);
     try {
-      sessionStorage.setItem('bridge_pwa_toast_dismissed', 'true');
+      sessionStorage.setItem('bridge_pwa_prompt_dismissed', 'true');
     } catch {
       // Ignore
     }
     if (onClose) onClose();
-  };
+  }, [onClose]);
 
   const handleTriggerInstall = async () => {
     if (isInstallable) {
@@ -58,197 +126,139 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ variant = 'b
     }
   };
 
-  // 1. Header quick-action button
-  if (variant === 'header-button') {
-    // If running genuinely standalone outside iframe and confirmed installed:
-    if (isStandalone && !isInIframe && isInstalled) {
-      return (
-        <>
-          <button
-            onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold text-emerald-400 transition cursor-pointer"
-            title="BRIDGE PWA Installed - Click for App Info"
-          >
-            <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-            <span>App Active</span>
-          </button>
-          {showModal && <PWAInstallModal onClose={() => setShowModal(false)} />}
-        </>
-      );
-    }
-
-    return (
-      <>
-        <button
-          onClick={handleTriggerInstall}
-          className="group relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-bridge-gold/20 via-amber-400/25 to-bridge-gold/20 hover:from-bridge-gold/30 hover:to-amber-400/35 border border-bridge-gold/50 hover:border-bridge-gold text-bridge-gold text-xs font-bold tracking-wide transition-all duration-200 cursor-pointer shadow-[0_0_12px_rgba(255,215,0,0.15)] hover:shadow-[0_0_20px_rgba(255,215,0,0.3)] active:scale-95"
-          title="Install BRIDGE App to your device"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-bridge-gold opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-bridge-gold"></span>
-          </span>
-          <Download className="w-3.5 h-3.5 group-hover:scale-110 transition-transform text-bridge-gold" />
-          <span>Install App</span>
-        </button>
-
-        {showModal && <PWAInstallModal onClose={() => setShowModal(false)} />}
-      </>
-    );
-  }
-
-  // 2. Floating Bottom Toast / Prompt
-  if (variant === 'floating-toast') {
-    if (toastDismissed) {
-      return null;
-    }
-
-    // Only hide if verified standalone app window
-    if (isStandalone && !isInIframe && isInstalled) {
-      return null;
-    }
-
-    return (
-      <>
-        <aside
-          aria-label="Install BRIDGE App prompt"
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 max-w-sm w-[calc(100vw-2rem)] rounded-2xl bg-bridge-card/95 backdrop-blur-xl border border-bridge-gold/40 p-4 shadow-2xl shadow-black/80 animate-slide-up text-white"
-        >
-          {/* Top highlight bar */}
-          <div className="absolute top-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-bridge-gold to-transparent opacity-80" />
-
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-bridge-card to-bridge-gold/20 border border-bridge-gold/40 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(255,215,0,0.15)]">
-                <span className="font-serif font-bold text-bridge-gold text-base">B</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-bridge-gold">Install PWA</span>
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                </div>
-                <h4 className="text-sm font-bold text-white tracking-tight">Add BRIDGE to Homescreen</h4>
-              </div>
-            </div>
-            <button
-              onClick={handleDismissToast}
-              className="text-bridge-subtext hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
-              title="Dismiss for now"
-              aria-label="Dismiss for now"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <p className="mt-2 text-xs text-bridge-subtext leading-relaxed">
-            Run BRIDGE as a native, full-screen app on iOS, Android, Mac, or Windows. Works offline with zero browser distraction.
-          </p>
-
-          <div className="mt-3.5 flex items-center gap-2">
-            <button
-              onClick={handleTriggerInstall}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-gradient-to-r from-bridge-gold to-amber-400 hover:from-amber-300 hover:to-bridge-gold text-bridge-dark font-bold text-xs uppercase tracking-wider shadow-lg shadow-bridge-gold/20 transition cursor-pointer active:scale-95"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Install Now</span>
-            </button>
-
-            <button
-              onClick={() => setShowModal(true)}
-              className="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-bridge-subtext hover:text-white transition cursor-pointer"
-            >
-              Instructions
-            </button>
-          </div>
-
-          {isInIframe && (
-            <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-amber-300/90">
-              <span>Preview mode detected</span>
-              <a
-                href={window.location.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-bridge-gold hover:underline font-semibold"
-              >
-                <span>Open in Tab</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          )}
-        </aside>
-
-        {showModal && <PWAInstallModal onClose={() => setShowModal(false)} />}
-      </>
-    );
-  }
-
-  // 3. In-page Banner variant
-  if (bannerDismissed) {
-    return null;
-  }
-
-  // If verified standalone app outside iframe and confirmed installed, omit the large banner
-  if (isStandalone && !isInIframe && isInstalled) {
-    return null;
-  }
+  // Only hide if verified standalone app outside iframe
+  const isAlreadyActiveInStandalone = isStandalone && !isInIframe && isInstalled;
+  const isVisible = hasScrolledDown && !isDismissed && !isAlreadyActiveInStandalone;
 
   return (
     <>
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-bridge-card via-[#151b2a] to-bridge-card border border-bridge-gold/30 p-4 sm:p-5 shadow-2xl backdrop-blur-xl animate-fade-in my-4">
-        {/* Subtle gold glow line */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-bridge-gold to-transparent opacity-70" />
+      <AnimatePresence>
+        {isVisible && (
+          <motion.aside
+            key="pwa-install-popup"
+            aria-label="Install BRIDGE App prompt"
+            initial={{
+              opacity: 0,
+              scale: 0.15,
+              y: 120,
+              rotate: -20,
+              rotateZ: -16,
+              skewX: -8,
+              filter: 'blur(6px)',
+            }}
+            animate={{
+              opacity: 1,
+              scale: [0.15, 1.16, 0.93, 1.04, 1],
+              y: [120, -22, 8, -3, 0],
+              rotate: [-20, 12, -5, 2, 0],
+              rotateZ: [-16, 10, -4, 1.5, 0],
+              skewX: [-8, 5, -2, 0],
+              filter: ['blur(6px)', 'blur(0px)', 'blur(0px)', 'blur(0px)', 'blur(0px)'],
+            }}
+            exit={{
+              opacity: 0,
+              scale: 0.7,
+              y: 60,
+              rotate: 10,
+              filter: 'blur(4px)',
+              transition: { duration: 0.3, ease: 'easeIn' },
+            }}
+            transition={{
+              duration: 0.88,
+              times: [0, 0.44, 0.7, 0.88, 1],
+              ease: [0.34, 1.56, 0.64, 1],
+            }}
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 max-w-sm w-[calc(100vw-2rem)] rounded-2xl bg-gradient-to-br from-[#0e1320]/95 via-[#0c101a]/95 to-[#131929]/95 backdrop-blur-2xl border border-bridge-gold/50 p-4 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_30px_rgba(255,215,0,0.22)] text-white select-none overflow-hidden"
+          >
+            {/* Ambient gold glow highlight line across the top */}
+            <div className="absolute top-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-bridge-gold to-transparent opacity-90 animate-pulse" />
+            <div className="absolute -top-10 -right-10 w-24 h-24 bg-bridge-gold/15 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3 sm:gap-4 max-w-2xl">
-            <div className="w-11 h-11 rounded-xl bg-bridge-gold/10 border border-bridge-gold/30 flex items-center justify-center shrink-0 mt-0.5 shadow-[0_0_15px_rgba(255,215,0,0.15)]">
-              <Smartphone className="w-6 h-6 text-bridge-gold animate-pulse" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-bridge-gold">
-                  PWA Ready
-                </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-bridge-gold/15 text-bridge-gold border border-bridge-gold/30">
-                  Zero Browser Clutter
-                </span>
+            <div className="relative z-10 flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {/* Playful bouncing icon with animated live beacon */}
+                <motion.div
+                  initial={{ rotate: -35, scale: 0 }}
+                  animate={{ rotate: [-35, 18, -8, 0], scale: [0, 1.25, 0.95, 1] }}
+                  transition={{ delay: 0.2, duration: 0.7, ease: 'easeOut' }}
+                  className="w-11 h-11 rounded-xl bg-gradient-to-br from-bridge-card to-bridge-gold/25 border border-bridge-gold/50 flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(255,215,0,0.25)] relative"
+                >
+                  <Smartphone className="w-5 h-5 text-bridge-gold" />
+                  <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 border border-bridge-dark"></span>
+                  </span>
+                </motion.div>
+
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-bridge-gold font-bold">
+                      INSTALL PWA
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-bridge-gold/15 text-bridge-gold border border-bridge-gold/30">
+                      Offline Ready
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-serif font-bold text-white tracking-tight">
+                    Add BRIDGE to Home Screen
+                  </h4>
+                </div>
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                Install BRIDGE to Your Home Screen
-              </h3>
-              <p className="text-xs sm:text-sm text-bridge-subtext leading-relaxed">
-                Add to your phone or desktop for instant, distraction-free access. Validate any offer anywhere, even offline with cached evaluations.
-              </p>
+
+              {/* Close Button */}
+              <button
+                onClick={handleDismiss}
+                className="text-bridge-subtext hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+                title="Dismiss prompt"
+                aria-label="Dismiss prompt"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto justify-end pt-1 md:pt-0">
-            <button
-              onClick={handleTriggerInstall}
-              className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-bridge-gold to-amber-400 hover:from-amber-300 hover:to-bridge-gold text-bridge-dark font-bold text-xs tracking-wider uppercase transition-all duration-200 cursor-pointer shadow-lg hover:shadow-[0_0_20px_rgba(255,215,0,0.4)]"
-            >
-              <Download className="w-4 h-4" />
-              <span>Install App</span>
-            </button>
+            <p className="relative z-10 mt-2.5 text-xs text-bridge-subtext leading-relaxed">
+              Launch directly from your home screen with zero browser bars, instant cached rubric loads, and offline diagnostic support.
+            </p>
 
-            <button
-              onClick={() => setShowModal(true)}
-              className="py-2.5 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-bridge-subtext hover:text-white transition cursor-pointer"
-            >
-              Guide
-            </button>
+            {/* Action Buttons */}
+            <div className="relative z-10 mt-3.5 flex items-center gap-2">
+              <button
+                onClick={handleTriggerInstall}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-bridge-gold via-amber-400 to-bridge-gold hover:from-amber-300 hover:to-bridge-gold text-bridge-dark font-bold text-xs uppercase tracking-wider shadow-lg shadow-bridge-gold/25 transition cursor-pointer active:scale-95"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Install App</span>
+              </button>
 
-            <button
-              onClick={handleDismissBanner}
-              className="p-2 text-bridge-subtext hover:text-white rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
-              title="Dismiss banner"
-              aria-label="Dismiss banner"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+              <button
+                onClick={() => setShowModal(true)}
+                className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-bridge-subtext hover:text-white transition cursor-pointer inline-flex items-center gap-1"
+              >
+                <span>Guide</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
+            {/* If embedded in preview iframe, provide clear direct tab link */}
+            {isInIframe && (
+              <div className="relative z-10 mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] text-amber-300/90">
+                <span>Preview Mode</span>
+                <a
+                  href={window.location.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-bridge-gold hover:underline font-semibold"
+                >
+                  <span>Open in Tab</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      {/* Multi-Platform Step-by-Step Installation Modal */}
       {showModal && <PWAInstallModal onClose={() => setShowModal(false)} />}
     </>
   );
@@ -271,7 +281,7 @@ export const PWAInstallModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg rounded-2xl bg-bridge-card border border-bridge-gold/30 p-6 shadow-2xl space-y-5 text-white max-h-[90vh] overflow-y-auto">
+      <div className="relative w-full max-w-lg rounded-2xl bg-bridge-card border border-bridge-gold/40 p-6 shadow-2xl space-y-5 text-white max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-bridge-subtext hover:text-white p-1 rounded-lg hover:bg-white/5 transition cursor-pointer"
@@ -288,7 +298,7 @@ export const PWAInstallModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
             <div className="text-[10px] uppercase font-bold tracking-widest text-bridge-gold">
               Progressive Web App
             </div>
-            <h3 className="text-lg font-bold text-white">Install BRIDGE on Your Device</h3>
+            <h3 className="text-lg font-serif font-bold text-white">Install BRIDGE on Your Device</h3>
           </div>
         </div>
 
@@ -296,15 +306,15 @@ export const PWAInstallModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
         <div className="space-y-2.5 bg-white/[0.02] border border-white/5 rounded-xl p-3.5 text-xs text-bridge-subtext">
           <div className="flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-bridge-gold shrink-0 mt-0.5" />
-            <p><strong className="text-white">Standalone App Window:</strong> Runs edge-to-edge without browser URL bars, search bars, or tabs.</p>
+            <p><strong className="text-white">Standalone Window:</strong> Runs full-screen with no browser address bars, tabs, or menus.</p>
           </div>
           <div className="flex items-start gap-2.5">
             <ShieldCheck className="w-4 h-4 text-bridge-gold shrink-0 mt-0.5" />
-            <p><strong className="text-white">Home Screen Icon:</strong> Launches with one tap right beside your native apps.</p>
+            <p><strong className="text-white">Home Screen Icon:</strong> Launches with 1 tap straight from your apps or home screen.</p>
           </div>
           <div className="flex items-start gap-2.5">
             <CheckCircle className="w-4 h-4 text-bridge-gold shrink-0 mt-0.5" />
-            <p><strong className="text-white">Offline Resilient:</strong> Validations, rubric guidance, and saved PDF reports work without connection.</p>
+            <p><strong className="text-white">Offline Resilient:</strong> Review offer frameworks and access cached diagnostics anywhere.</p>
           </div>
         </div>
 
@@ -312,10 +322,10 @@ export const PWAInstallModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
         {isInstallable && (
           <div className="p-3.5 rounded-xl bg-gradient-to-r from-bridge-gold/15 to-amber-500/10 border border-bridge-gold/40 space-y-2">
             <p className="text-xs text-bridge-gold font-bold flex items-center gap-1.5">
-              <Download className="w-4 h-4" /> Ready for 1-Click Install
+              <Download className="w-4 h-4" /> Ready for Direct 1-Click Install
             </p>
             <p className="text-[11px] text-bridge-subtext">
-              Your browser supports direct installation. Click below to confirm.
+              Your browser supports direct installation. Click below to launch the native prompt.
             </p>
             <button
               onClick={async () => {
@@ -352,7 +362,7 @@ export const PWAInstallModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
               </a>
               <button
                 onClick={handleCopyLink}
-                className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white font-medium text-xs transition"
+                className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white font-medium text-xs transition cursor-pointer"
                 title="Copy App URL"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}

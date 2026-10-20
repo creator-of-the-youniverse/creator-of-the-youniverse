@@ -113,15 +113,14 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* PWA Homescreen Action Button */}
-          <PWAInstallPrompt variant="header-button" />
+          <div className="text-[11px] font-mono text-bridge-subtext/70 hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.03] border border-white/5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>SYSTEM ONLINE</span>
+          </div>
         </div>
       </header>
 
       <main className="flex-grow flex flex-col justify-center py-8 sm:py-12 px-4 relative z-10">
-        <div className="max-w-4xl mx-auto w-full mb-6">
-          <PWAInstallPrompt variant="banner" />
-        </div>
 
         <AnimatePresence mode="wait">
           {state === AppState.WELCOME && (
@@ -256,8 +255,8 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* Floating PWA Install Prompt */}
-      <PWAInstallPrompt variant="floating-toast" />
+      {/* Delayed Pop-up PWA Install Prompt (scroll triggered with bounce & twist entrance) */}
+      <PWAInstallPrompt />
 
       {/* Offline Mode Indicator */}
       <OfflineIndicator />
