@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#05080F"/>
+      <stop offset="50%" stop-color="#0F131D"/>
+      <stop offset="100%" stop-color="#05080F"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF0A0"/>
+      <stop offset="40%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#B8860B"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="510" height="510" x="1" y="1" rx="111" fill="none" stroke="#FFD700" stroke-opacity="0.2" stroke-width="2"/>
+
+  <!-- Sovereign Geometry / Bridge Node -->
+  <g transform="translate(0, 0)">
+    <!-- Outer Node Ring -->
+    <circle cx="256" cy="256" r="160" fill="none" stroke="url(#gold)" stroke-width="3" stroke-dasharray="16 8" opacity="0.6"/>
+    
+    <!-- Arch of the Bridge -->
+    <path d="M 120 340 C 180 200, 332 200, 392 340" fill="none" stroke="url(#gold)" stroke-width="12" stroke-linecap="round" filter="url(#glow)"/>
+    
+    <!-- Deck of the Bridge -->
+    <path d="M 100 290 L 412 290" fill="none" stroke="url(#gold)" stroke-width="6" stroke-linecap="round"/>
+
+    <!-- Suspension Cables -->
+    <line x1="170" y1="260" x2="170" y2="290" stroke="#FFD700" stroke-width="3" opacity="0.8"/>
+    <line x1="210" y1="230" x2="210" y2="290" stroke="#FFD700" stroke-width="3" opacity="0.8"/>
+    <line x1="256" y1="218" x2="256" y2="290" stroke="#FFD700" stroke-width="4" opacity="0.9"/>
+    <line x1="302" y1="230" x2="302" y2="290" stroke="#FFD700" stroke-width="3" opacity="0.8"/>
+    <line x1="342" y1="260" x2="342" y2="290" stroke="#FFD700" stroke-width="3" opacity="0.8"/>
+
+    <!-- Central Validation Diamond / Keystone -->
+    <polygon points="256,150 286,188 256,226 226,188" fill="url(#gold)" filter="url(#glow)"/>
+    <polygon points="256,162 274,188 256,214 238,188" fill="#05080F"/>
+    <circle cx="256" cy="188" r="6" fill="url(#gold)"/>
+
+    <!-- Foundation Anchor Nodes -->
+    <circle cx="120" cy="340" r="14" fill="#05080F" stroke="url(#gold)" stroke-width="5"/>
+    <circle cx="392" cy="340" r="14" fill="#05080F" stroke="url(#gold)" stroke-width="5"/>
+    <circle cx="120" cy="340" r="5" fill="#FFD700"/>
+    <circle cx="392" cy="340" r="5" fill="#FFD700"/>
+
+    <!-- Typography Monogram "B" -->
+    <text x="256" y="385" font-family="'Inter', sans-serif" font-size="34" font-weight="900" fill="#E2E8F0" letter-spacing="8" text-anchor="middle" opacity="0.9">BRIDGE</text>
+    <text x="256" y="412" font-family="'Inter', sans-serif" font-size="13" font-weight="600" fill="#B8860B" letter-spacing="4" text-anchor="middle">SOVEREIGN NODE</text>
+  </g>
+</svg>

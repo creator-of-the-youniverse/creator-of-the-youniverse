@@ -1,0 +1,8 @@
+{
+  "name": "BRIDGE - Sovereign Node",
+  "description": "A sovereign validation engine to test any offer-market fit with surgical precision.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
