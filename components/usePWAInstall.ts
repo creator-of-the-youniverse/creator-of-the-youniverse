@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -10,23 +10,50 @@ export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
+  const [platform, setPlatform] = useState<'ios' | 'android' | 'desktop' | 'unknown'>('unknown');
 
   useEffect(() => {
+    // Check if running inside an iframe (e.g., AI Studio preview)
+    const insideIframe = typeof window !== 'undefined' && window.self !== window.top;
+    setIsInIframe(insideIframe);
+
     // Detect standalone mode (already running as installed PWA)
     const checkStandalone = () => {
       const standaloneQuery = window.matchMedia('(display-mode: standalone)').matches;
       const navStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-      const isApp = standaloneQuery || navStandalone;
+      const isApp = standaloneQuery || navStandalone || document.referrer.startsWith('android-app://');
       setIsStandalone(isApp);
-      setIsInstalled(isApp);
+      if (isApp) {
+        setIsInstalled(true);
+      }
     };
 
     checkStandalone();
 
-    // Detect iOS devices
+    // Listen for display-mode changes
+    const mediaQueryList = window.matchMedia('(display-mode: standalone)');
+    const handleMediaChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        setIsStandalone(true);
+        setIsInstalled(true);
+      }
+    };
+    mediaQueryList.addEventListener('change', handleMediaChange);
+
+    // Platform detection
     const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroidDevice = /android/.test(userAgent);
+    
     setIsIOS(isIOSDevice);
+    if (isIOSDevice) {
+      setPlatform('ios');
+    } else if (isAndroidDevice) {
+      setPlatform('android');
+    } else {
+      setPlatform('desktop');
+    }
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -43,12 +70,13 @@ export function usePWAInstall() {
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
+      mediaQueryList.removeEventListener('change', handleMediaChange);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
-  const install = async (): Promise<boolean> => {
+  const install = useCallback(async (): Promise<boolean> => {
     if (!deferredPrompt) {
       return false;
     }
@@ -66,14 +94,17 @@ export function usePWAInstall() {
       console.warn('PWA install prompt error:', err);
       return false;
     }
-  };
+  }, [deferredPrompt]);
 
   return {
     isInstallable: !!deferredPrompt,
     isInstalled,
     isStandalone,
     isIOS,
+    isInIframe,
+    platform,
     install,
     hasPrompt: !!deferredPrompt,
   };
 }
+

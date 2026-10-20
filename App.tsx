@@ -256,6 +256,9 @@ export default function App() {
         </AnimatePresence>
       </main>
 
+      {/* Floating PWA Install Prompt */}
+      <PWAInstallPrompt variant="floating-toast" />
+
       {/* Offline Mode Indicator */}
       <OfflineIndicator />
     </div>
