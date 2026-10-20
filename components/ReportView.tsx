@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ValidationReport } from '../types';
 import { Button } from './Button';
-import { Check, AlertTriangle, TrendingUp, Send, Loader2, GitBranch, ExternalLink } from 'lucide-react';
+import { Check, AlertTriangle, TrendingUp, Send, Loader2, Download } from 'lucide-react';
 import { clsx } from 'clsx';
-import { GitHubSyncModal, GITHUB_WEB_URL } from './GitHubSyncModal';
+import { GitHubSyncModal } from './GitHubSyncModal';
 
 interface ReportViewProps {
   report: ValidationReport;
@@ -60,14 +60,6 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onCommit }) => {
             <span>Generated: {new Date().toLocaleTimeString()}</span>
             <span>•</span>
             <span>Node ID: BB</span>
-            <span>•</span>
-            <button
-              onClick={() => setShowGitHubSync(true)}
-              className="inline-flex items-center gap-1.5 text-bridge-gold hover:text-white transition-colors cursor-pointer font-mono text-xs underline decoration-bridge-gold/40"
-            >
-              <GitBranch className="w-3.5 h-3.5" />
-              <span>Target: creator-of-the-youniverse/validation</span>
-            </button>
           </div>
         </div>
 
@@ -200,8 +192,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onCommit }) => {
               onClick={() => setShowGitHubSync(true)} 
               className="w-full sm:w-auto min-w-[220px] bg-gradient-to-r from-bridge-gold to-amber-400 text-bridge-dark font-bold hover:shadow-[0_0_20px_rgba(255,215,0,0.3)]"
             >
-              <GitBranch className="w-4 h-4 text-bridge-dark" />
-              <span>Send to GitHub Repository</span>
+              <Download className="w-4 h-4 text-bridge-dark" />
+              <span>Export Validation Report</span>
             </Button>
             <Button 
               variant="secondary"
