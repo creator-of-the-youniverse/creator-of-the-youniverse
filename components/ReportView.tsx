@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ValidationReport } from '../types';
 import { Button } from './Button';
-import { Check, AlertTriangle, TrendingUp, Send, Loader2, Download } from 'lucide-react';
+import { Check, AlertTriangle, TrendingUp, Send, Loader2, Download, FileText, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { GitHubSyncModal } from './GitHubSyncModal';
+import { downloadReportAsPDF } from '../services/pdfExport';
 
 interface ReportViewProps {
   report: ValidationReport;
@@ -14,6 +15,21 @@ interface ReportViewProps {
 export const ReportView: React.FC<ReportViewProps> = ({ report, onCommit }) => {
   const [isCommitting, setIsCommitting] = useState(false);
   const [showGitHubSync, setShowGitHubSync] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    try {
+      setIsDownloadingPdf(true);
+      await downloadReportAsPDF(report);
+      setPdfDownloaded(true);
+      setTimeout(() => setPdfDownloaded(false), 4500);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   const handleCommit = () => {
     setIsCommitting(true);
@@ -60,6 +76,42 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onCommit }) => {
             <span>Generated: {new Date().toLocaleTimeString()}</span>
             <span>•</span>
             <span>Node ID: BB</span>
+            <span>•</span>
+            <span className="text-emerald-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Offline Ready
+            </span>
+          </div>
+
+          {/* Quick PDF Action in Header */}
+          <div className="pt-2 flex items-center justify-center gap-3">
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isDownloadingPdf}
+              className={clsx(
+                "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer shadow-sm",
+                pdfDownloaded
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                  : "bg-bridge-gold/10 hover:bg-bridge-gold/20 border border-bridge-gold/30 text-bridge-gold hover:shadow-[0_0_15px_rgba(255,215,0,0.25)]"
+              )}
+              title="Save validation results offline as high-resolution PDF document"
+            >
+              {isDownloadingPdf ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : pdfDownloaded ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>PDF Saved to Device!</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Report as PDF</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
@@ -186,20 +238,60 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onCommit }) => {
         </div>
 
         {/* Action Area */}
-        <div className="sticky bottom-4 md:bottom-8 flex justify-center z-50">
-          <div className="bg-bridge-dark/90 backdrop-blur-md p-2 rounded-xl border border-white/10 shadow-2xl flex flex-col sm:flex-row items-center gap-2">
-            <Button 
-              onClick={() => setShowGitHubSync(true)} 
-              className="w-full sm:w-auto min-w-[220px] bg-gradient-to-r from-bridge-gold to-amber-400 text-bridge-dark font-bold hover:shadow-[0_0_20px_rgba(255,215,0,0.3)]"
+        <div className="sticky bottom-4 md:bottom-8 flex flex-col items-center justify-center z-50 px-4">
+          {pdfDownloaded && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-2 px-3 py-1.5 rounded-full bg-emerald-950/90 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 shadow-lg backdrop-blur-md"
             >
-              <Download className="w-4 h-4 text-bridge-dark" />
-              <span>Export Validation Report</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Validation Report saved offline as PDF</span>
+            </motion.div>
+          )}
+
+          <div className="bg-bridge-dark/95 backdrop-blur-md p-2.5 rounded-2xl border border-white/10 shadow-2xl flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto max-w-full">
+            {/* Primary Action: Download Report as PDF */}
+            <Button 
+              onClick={handleDownloadPdf}
+              isLoading={isDownloadingPdf}
+              className={clsx(
+                "w-full sm:w-auto min-w-[220px] font-bold transition-all shadow-md",
+                pdfDownloaded 
+                  ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20"
+                  : "bg-gradient-to-r from-bridge-gold to-amber-400 text-bridge-dark hover:shadow-[0_0_20px_rgba(255,215,0,0.35)]"
+              )}
+              title="Save validation results offline as high-resolution PDF document"
+            >
+              {pdfDownloaded ? (
+                <>
+                  <Check className="w-4 h-4 text-white" />
+                  <span>PDF Saved (Download Again)</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 text-bridge-dark" />
+                  <span>Download Report as PDF</span>
+                </>
+              )}
             </Button>
+
+            {/* Export Markdown / CLI */}
+            <Button 
+              variant="secondary"
+              onClick={() => setShowGitHubSync(true)} 
+              className="w-full sm:w-auto min-w-[170px] text-xs font-semibold border-white/10 hover:border-bridge-gold/40"
+            >
+              <FileText className="w-4 h-4 text-bridge-gold" />
+              <span>Export & Markdown</span>
+            </Button>
+
+            {/* Commit to NotNotes */}
             <Button 
               variant="secondary"
               onClick={handleCommit} 
               isLoading={isCommitting}
-              className="w-full sm:w-auto min-w-[180px]"
+              className="w-full sm:w-auto min-w-[170px] text-xs font-semibold"
             >
               {isCommitting ? (
                  <span className="flex items-center">Committing Artifact...</span>

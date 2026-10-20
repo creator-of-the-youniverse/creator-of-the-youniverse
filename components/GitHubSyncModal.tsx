@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Download, Copy, Check, FileText, X } from 'lucide-react';
+import { Download, Copy, Check, FileText, X, Loader2, FileDown } from 'lucide-react';
 import { ValidationReport } from '../types';
+import { downloadReportAsPDF } from '../services/pdfExport';
 
 interface GitHubSyncModalProps {
   report: ValidationReport;
@@ -64,6 +65,8 @@ ${report.offerRefinement.map(r => `### Priority ${r.priority}: ${r.issue}
 
 export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({ report, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false);
 
   const markdownContent = formatReportAsMarkdown(report);
 
@@ -82,6 +85,19 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({ report, onClos
     link.download = `validation-${safeTitle || 'report'}.md`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      setIsDownloadingPdf(true);
+      await downloadReportAsPDF(report);
+      setPdfDownloaded(true);
+      setTimeout(() => setPdfDownloaded(false), 3000);
+    } catch (err) {
+      console.error('Failed to export PDF from modal:', err);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
 
   return (
@@ -104,26 +120,56 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({ report, onClos
               <span className="text-[10px] uppercase font-bold tracking-widest text-bridge-gold">
                 Export Artifact
               </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-mono">
+                PDF Ready
+              </span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/70 font-mono">
                 Markdown
               </span>
             </div>
             <h3 className="text-xl font-bold text-white">Export Validation Report</h3>
             <p className="text-xs text-bridge-subtext">
-              Save or copy your complete diagnostic breakdown, scorecards, and action refinements.
+              Save or export your complete diagnostic breakdown, scorecards, and action refinements for offline reference.
             </p>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Primary PDF Download */}
           <button
-            onClick={handleDownload}
+            onClick={handleDownloadPdf}
+            disabled={isDownloadingPdf}
             className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-gradient-to-r from-bridge-gold to-amber-400 text-bridge-dark font-bold text-xs uppercase tracking-wider hover:opacity-95 transition cursor-pointer shadow-md shadow-bridge-gold/20"
           >
-            <Download className="w-4 h-4" />
-            <span>Download .MD Report</span>
+            {isDownloadingPdf ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-bridge-dark" />
+                <span>Generating...</span>
+              </>
+            ) : pdfDownloaded ? (
+              <>
+                <Check className="w-4 h-4 text-bridge-dark" />
+                <span>PDF Saved!</span>
+              </>
+            ) : (
+              <>
+                <FileDown className="w-4 h-4 text-bridge-dark" />
+                <span>Download PDF</span>
+              </>
+            )}
           </button>
+
+          {/* Markdown file download */}
+          <button
+            onClick={handleDownload}
+            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-bridge-gold" />
+            <span>Download .MD</span>
+          </button>
+
+          {/* Copy to clipboard */}
           <button
             onClick={handleCopyMarkdown}
             className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
@@ -131,12 +177,12 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({ report, onClos
             {copied ? (
               <>
                 <Check className="w-4 h-4 text-emerald-400" />
-                <span className="text-emerald-400">Copied to Clipboard!</span>
+                <span className="text-emerald-400">Copied!</span>
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4 text-bridge-gold" />
-                <span>Copy Full Markdown</span>
+                <span>Copy Markdown</span>
               </>
             )}
           </button>

@@ -11,13 +11,15 @@
     "git:sync": "git add . && git commit -m 'feat: update PWA and validation features' && git push -u origin main"
   },
   "dependencies": {
+    "@google/genai": "^1.41.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.34.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^0.574.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "@google/genai": "^1.41.0",
-    "framer-motion": "^12.34.1",
-    "lucide-react": "^0.574.0",
-    "tailwind-merge": "^3.4.1",
-    "clsx": "^2.1.1"
+    "tailwind-merge": "^3.4.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
