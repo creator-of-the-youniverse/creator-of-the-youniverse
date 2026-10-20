@@ -14,55 +14,56 @@ export function usePWAInstall() {
   const [platform, setPlatform] = useState<'ios' | 'android' | 'desktop' | 'unknown'>('unknown');
 
   useEffect(() => {
-    // Check if running inside an iframe (e.g., AI Studio preview)
+    // 1. Check if running inside an iframe (e.g. AI Studio preview environment)
     const insideIframe = typeof window !== 'undefined' && window.self !== window.top;
     setIsInIframe(insideIframe);
 
-    // Detect standalone mode (already running as installed PWA)
+    // 2. Platform detection
+    if (typeof window !== 'undefined' && window.navigator) {
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isAndroidDevice = /android/.test(userAgent);
+      
+      setIsIOS(isIOSDevice);
+      if (isIOSDevice) {
+        setPlatform('ios');
+      } else if (isAndroidDevice) {
+        setPlatform('android');
+      } else {
+        setPlatform('desktop');
+      }
+    }
+
+    // 3. Standalone mode check
+    // CRITICAL: If inside an iframe, the app is NEVER standalone.
+    // Also NEVER use document.referrer as an install detector (Android intents set android-app:// referrer for normal browser visits).
     const checkStandalone = () => {
-      const standaloneQuery = window.matchMedia('(display-mode: standalone)').matches;
-      const navStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-      const isApp = standaloneQuery || navStandalone || document.referrer.startsWith('android-app://');
-      setIsStandalone(isApp);
-      if (isApp) {
-        setIsInstalled(true);
+      if (insideIframe) {
+        setIsStandalone(false);
+        return;
+      }
+      
+      try {
+        const standaloneQuery = window.matchMedia('(display-mode: standalone)').matches;
+        const navStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+        const isApp = standaloneQuery || navStandalone;
+        setIsStandalone(isApp);
+      } catch (e) {
+        setIsStandalone(false);
       }
     };
 
     checkStandalone();
 
-    // Listen for display-mode changes
-    const mediaQueryList = window.matchMedia('(display-mode: standalone)');
-    const handleMediaChange = (e: MediaQueryListEvent) => {
-      if (e.matches) {
-        setIsStandalone(true);
-        setIsInstalled(true);
-      }
-    };
-    mediaQueryList.addEventListener('change', handleMediaChange);
-
-    // Platform detection
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const isAndroidDevice = /android/.test(userAgent);
-    
-    setIsIOS(isIOSDevice);
-    if (isIOSDevice) {
-      setPlatform('ios');
-    } else if (isAndroidDevice) {
-      setPlatform('android');
-    } else {
-      setPlatform('desktop');
-    }
-
+    // 4. Capture native beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
+    // 5. Native appinstalled event (fired ONLY when the app is genuinely installed)
     const handleAppInstalled = () => {
       setIsInstalled(true);
-      setIsStandalone(true);
       setDeferredPrompt(null);
     };
 
@@ -70,7 +71,6 @@ export function usePWAInstall() {
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      mediaQueryList.removeEventListener('change', handleMediaChange);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
@@ -85,7 +85,6 @@ export function usePWAInstall() {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setIsInstalled(true);
-        setIsStandalone(true);
         setDeferredPrompt(null);
         return true;
       }
@@ -107,4 +106,3 @@ export function usePWAInstall() {
     hasPrompt: !!deferredPrompt,
   };
 }
-
